@@ -19,7 +19,8 @@
 
 
 (declare json-rpc-request-and-maybe-parse
-         get-auth-token)
+         get-auth-token
+         remove-nils)
 
 
 
@@ -49,6 +50,27 @@
   "Constant part in the API url.
   Can be overridden e.g. in case of passing through a reverse proxy."
   "/api_jsonrpc.php")
+
+
+
+;; HELPERS - PARAMS
+
+(def generic-get-params-keywords
+  (->> ["countOutput" "editable" "excludeSearch" "filter" "limit" "output" "search" "searchByAny" "searchWildcardsEnabled" "sortorder" "startSearch"]
+       (map keyword)
+       set))
+
+(defn parse-generic-get-params [all-keyword-params]
+  (let [get-params (into (empty all-keyword-params) (filter #(generic-get-params-keywords (first %)) all-keyword-params))
+        get-params (into (empty get-params) (map (fn [[k v]] [(name k) v]) get-params))] ; convert back keywords into strings
+    (-> get-params
+        (assoc "filter" (or (get get-params "filter") {})))))
+
+(defn parse-list-or-single-id-param [p]
+  (when p
+    (cond
+      (coll? p) (map str p)
+      :default (str p))))
 
 
 
@@ -89,13 +111,11 @@
   "Retrieve the list of host templates.
 
   This corresponds to the [template.get](https://www.zabbix.com/documentation/current/manual/api/reference/template/get) method."
-  [conn & {:keys [filter
-                  request-id]
-           :or {filter {}}}]
+  [conn & {:keys [request-id] :as all-kw-args}]
   (let [auth-token (get-auth-token conn)]
     (json-rpc-request-and-maybe-parse conn
                                       "template.get"
-                                      :params {"filter" filter}
+                                      :params (parse-generic-get-params all-kw-args)
                                       :auth auth-token
                                       :request-id request-id)))
 
@@ -103,18 +123,54 @@
   "Retrieve the list of hosts.
 
   This corresponds to the [host.get](https://www.zabbix.com/documentation/current/manual/api/reference/host/get) method."
-  [conn & {:keys [filter
-                  request-id]
-           :or {filter {}}}]
+  [conn & {:keys [request-id] :as all-kw-args}]
   (let [auth-token (get-auth-token conn)]
     (json-rpc-request-and-maybe-parse conn
                                       "host.get"
-                                      :params {"filter" filter}
+                                      :params (parse-generic-get-params all-kw-args)
                                       :auth auth-token
                                       :request-id request-id)))
 
 
 
+
+;; VOLATILE DATA
+
+(defn object-type->history-id [object-type]
+  (get
+   {:float 0
+    :char  1
+    :log   2
+    :unint 3
+    :text  4}
+   object-type))
+
+(defn get-history
+  "Retrieve the list of hosts.
+
+  This corresponds to the [history.get](https://www.zabbix.com/documentation/current/manual/api/reference/history/get) method."
+  [conn & {:keys [object-type host-ids item-ids sort-by-field
+                  request-id]
+           :as all-kw-args
+           :or {object-type :unint
+                sort-by-field   "clock"}}]
+  (let [auth-token (get-auth-token conn)
+        history-id (object-type->history-id object-type)
+        host-ids (parse-list-or-single-id-param host-ids)
+        item-ids (parse-list-or-single-id-param item-ids)
+        generic-get-params (parse-generic-get-params all-kw-args)]
+
+
+    (json-rpc-request-and-maybe-parse conn
+                                      "history.get"
+                                      :params (into {"history" history-id
+                                                     "hostids" host-ids
+                                                     "itemids" item-ids
+                                                     "sortfield" sort-by-field}
+                                                    generic-get-params)
+                                      :auth auth-token
+                                      :request-id request-id)
+    ))
 
 
 
@@ -128,7 +184,7 @@
                  "method"  method
                  "id"      (or request-id 1)
                  "auth"    auth
-                 "params"  params}
+                 "params"  (remove-nils params)}
         raw-resp (http-client/post url {:accept :json
                                         :content-type :json
                                         :body (json/write-value-as-string rq-body)
@@ -152,3 +208,28 @@
 (defn get-auth-token [conn]
   (binding [content-level ::data]
     (auth conn)))
+
+
+
+
+;; HELPERS: GENERIC
+
+(defn keep-vals-in-coll
+  "Return new collection of same type as COLL with only elements whose values satisfy PREDICATE."
+  [coll predicate]
+  (when (not (coll? coll))
+    (throw (ex-info "Argument `coll` is not a collection"
+                    {:ex-type :unexpected-type,
+                     :coll coll})))
+  (let [predicate (if (map? coll)
+                    (comp predicate val)
+                    predicate)]
+    (into (empty coll) (filter predicate coll))))
+
+(defn remove-vals-in-coll
+  "Return new collection of same type as COLL with elements whose values satisfy PREDICATE removed."
+  [coll predicate]
+  (keep-vals-in-coll coll (complement predicate)))
+
+(defn remove-nils [coll]
+  (remove-vals-in-coll coll nil?))
