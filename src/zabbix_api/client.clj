@@ -14,13 +14,16 @@
   (:require [clj-http.client :as http-client]
             [clojure.string :as str]
             [clojure.edn :as edn]
-            [jsonista.core :as json])
+            [jsonista.core :as json]
+            [tick.alpha.api :as t])
   (:use [slingshot.slingshot :only [try+]]))
 
 
-(declare json-rpc-request-and-maybe-parse
+(declare member?
+         json-rpc-request-and-maybe-parse
          get-auth-token
-         remove-nils ensure-inst-ts)
+         remove-nils ensure-inst-ts
+         clojurize-timed-collection)
 
 
 
@@ -33,7 +36,7 @@
   - `::body`: HTTP body parsing into a clojure data structure
   - `::data`: \"data\" part of the prometheus response
   - `::best`: only the most sensible data for each endpoint (default)"
-  ::data)
+  ::best)
 
 
 (def ^:dynamic convert-result
@@ -171,9 +174,7 @@
                                                      "time_to" to}
                                                     generic-get-params)
                                       :auth auth-token
-                                      :request-id request-id)
-    ))
-
+                                      :request-id request-id)))
 
 
 
@@ -203,6 +204,14 @@
 
           ::data
           (get body "result")
+
+          ::best
+          (let [result (get body "result")]
+            (if (and (coll? result)
+                     (map? (first result))
+                     (member? "clock" (keys (first result))))
+              (clojurize-timed-collection result)
+              result))
 
           (throw (ex-info "Unexpected `content-level`" {:ex-type ::unexpected-content-level,
                                                         :input content-level})))))))
@@ -236,6 +245,37 @@
 (defn remove-nils [coll]
   (remove-vals-in-coll coll nil?))
 
+(defn- entry-member-of-map? [entry coll]
+  (let [[k v] entry]
+    (and (contains? coll k)
+         (= v (get coll k)))))
+
+(defn member?
+  "Returns a truthy value if V is found in collection COLL."
+  [v coll]
+
+  (when-not (coll? coll)
+    (throw (ex-info "Argument `coll` is not a collection" {:ex-type :unexpected-type})))
+
+  (cond
+    (set? coll) (coll v)                ; sets can be used as fn
+
+    (map? coll)
+    (cond
+      (and (vector? v)
+           (= 2 (count v)))
+      (entry-member-of-map? v coll)
+
+      (and (map? v)
+           (= 1 (count v)))
+      (entry-member-of-map? (first v) coll)
+
+      :default (throw (ex-info "Argument `coll` is a map, expecting `v` to be a vector of size 2 or map os size 1"
+                               {:ex-type :unexpected-type,
+                                :v v :coll coll})))
+
+    :default (some #{v} coll)))
+
 
 
 ;; HELPERS: TIME
@@ -248,7 +288,20 @@
     :default
     i))
 
+(defn- zabbix-timestamp->instant [ts-s & [ns-part]]
+  (let [s-dur (t/new-duration (edn/read-string ts-s) :seconds)
+        ns-part (or (edn/read-string ns-part) 0)
+        ns-dur (t/new-duration ns-part :nanos)]
+    (t/+ (t/epoch) s-dur ns-dur)))
 
-(defn- timestamp->inst [ts]
-  ;; REVIEW: `clojure.instant/parse-timestamp` might be a better fit for this but I struggle to find a working example for this use-case.
-  (java.sql.Timestamp. ts))
+(defn- clojurize-timed-collection-entry [entry]
+  (let [ts-s (get entry "clock")
+        ns-part (get entry "ns")
+        instant (zabbix-timestamp->instant ts-s)
+        entry (-> entry
+                  (dissoc "clock")
+                  (dissoc "ns"))]
+    [instant entry]))
+
+(defn- clojurize-timed-collection [coll]
+  (into {} (map clojurize-timed-collection-entry coll)))
