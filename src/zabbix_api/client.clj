@@ -20,7 +20,7 @@
 
 (declare json-rpc-request-and-maybe-parse
          get-auth-token
-         remove-nils)
+         remove-nils ensure-inst-ts)
 
 
 
@@ -149,7 +149,7 @@
   "Retrieve the list of hosts.
 
   This corresponds to the [history.get](https://www.zabbix.com/documentation/current/manual/api/reference/history/get) method."
-  [conn & {:keys [object-type host-ids item-ids sort-by-field
+  [conn & {:keys [object-type host-ids item-ids sort-by-field from to
                   request-id]
            :as all-kw-args
            :or {object-type :unint
@@ -158,15 +158,17 @@
         history-id (object-type->history-id object-type)
         host-ids (parse-list-or-single-id-param host-ids)
         item-ids (parse-list-or-single-id-param item-ids)
+        from (ensure-inst-ts from)
+        to (ensure-inst-ts to)
         generic-get-params (parse-generic-get-params all-kw-args)]
-
-
     (json-rpc-request-and-maybe-parse conn
                                       "history.get"
                                       :params (into {"history" history-id
                                                      "hostids" host-ids
                                                      "itemids" item-ids
-                                                     "sortfield" sort-by-field}
+                                                     "sortfield" sort-by-field
+                                                     "time_from" from
+                                                     "time_to" to}
                                                     generic-get-params)
                                       :auth auth-token
                                       :request-id request-id)
@@ -233,3 +235,20 @@
 
 (defn remove-nils [coll]
   (remove-vals-in-coll coll nil?))
+
+
+
+;; HELPERS: TIME
+
+(defn- ensure-inst-ts [i]
+  (cond
+    (inst? i)
+    (int (/ (inst-ms i) 1000))
+
+    :default
+    i))
+
+
+(defn- timestamp->inst [ts]
+  ;; REVIEW: `clojure.instant/parse-timestamp` might be a better fit for this but I struggle to find a working example for this use-case.
+  (java.sql.Timestamp. ts))
