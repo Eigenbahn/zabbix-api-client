@@ -149,7 +149,7 @@
    object-type))
 
 (defn get-history
-  "Retrieve the list of hosts.
+  "Retrieve timeseries data for hosts / items.
 
   This corresponds to the [history.get](https://www.zabbix.com/documentation/current/manual/api/reference/history/get) method."
   [conn & {:keys [object-type host-ids item-ids sort-by-field from to
@@ -171,7 +171,32 @@
                                                      "itemids" item-ids
                                                      "sortfield" sort-by-field
                                                      "time_from" from
-                                                     "time_to" to}
+                                                     "time_till" to}
+                                                    generic-get-params)
+                                      :auth auth-token
+                                      :request-id request-id)))
+
+(defn get-trends
+  "Retrieve the list of trends.
+
+  This corresponds to the [trend.get](https://www.zabbix.com/documentation/current/manual/api/reference/trend/get) method."
+  [conn & {:keys [item-ids from to count-output limit output
+                  request-id]
+           :as all-kw-args
+           :or {}}]
+  (let [auth-token (get-auth-token conn)
+        item-ids (parse-list-or-single-id-param item-ids)
+        from (ensure-inst-ts from)
+        to (ensure-inst-ts to)
+        generic-get-params (parse-generic-get-params all-kw-args)]
+    (json-rpc-request-and-maybe-parse conn
+                                      "trend.get"
+                                      :params (into {"itemids" item-ids
+                                                     "time_from" from
+                                                     "time_till" to
+                                                     "countOutput" count-output
+                                                     "limit" limit
+                                                     "output" output}
                                                     generic-get-params)
                                       :auth auth-token
                                       :request-id request-id)))
