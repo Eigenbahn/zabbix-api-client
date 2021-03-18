@@ -134,6 +134,72 @@
                                       :auth auth-token
                                       :request-id request-id)))
 
+(defn get-items
+  "Retrieve the list of items.
+
+  This corresponds to the [item.get](https://www.zabbix.com/documentation/current/manual/api/reference/item/get) method."
+  [conn & {:keys [item-ids group-ids template-ids host-ids
+                  proxy-ids interface-ids graph-ids trigger-ids application-ids
+                  ;; webitems
+                  inherited templated monitored
+                  group host application
+                  with-triggers
+                  hosts-q interfaces-q triggers-q applications-q
+                  discovery-rule-q item-discovery-q preprocessing-q
+                  filter limit-for-subselects sort-by-fields
+                  request-id]
+           :as all-kw-args}]
+  (let [auth-token (get-auth-token conn)
+
+        item-ids (parse-list-or-single-id-param item-ids)
+        group-ids (parse-list-or-single-id-param group-ids)
+        template-ids (parse-list-or-single-id-param template-ids)
+        host-ids (parse-list-or-single-id-param host-ids)
+        proxy-ids (parse-list-or-single-id-param proxy-ids)
+        interface-ids (parse-list-or-single-id-param interface-ids)
+        graph-ids (parse-list-or-single-id-param graph-ids)
+        trigger-ids (parse-list-or-single-id-param trigger-ids)
+        application-ids (parse-list-or-single-id-param application-ids)
+
+        generic-get-params (parse-generic-get-params all-kw-args)]
+    (json-rpc-request-and-maybe-parse conn
+                                      "item.get"
+                                      :params (into {"itemids" item-ids
+                                                     "groupids" group-ids
+                                                     "templateids" template-ids
+                                                     "hostids" host-ids
+                                                     "proxyids" proxy-ids
+                                                     "interfaceids" interface-ids
+                                                     "graphids" graph-ids
+                                                     "triggerids" trigger-ids
+                                                     "applicationids" application-ids
+
+                                                     "inherited" inherited
+                                                     "templated" templated
+                                                     "monitored" monitored
+
+                                                     "group" group
+                                                     "host" host
+                                                     "application" application
+
+                                                     "with_triggers" with-triggers
+
+                                                     ;; select queries
+                                                     "selectHosts" hosts-q
+                                                     "selectInterfaces" interfaces-q
+                                                     "selectTriggers" triggers-q
+                                                     "selectApplications" applications-q
+                                                     "selectDiscoveryRule" discovery-rule-q
+                                                     "selectItemDiscovery" item-discovery-q
+                                                     "selectPreprocessing" preprocessing-q
+
+                                                     "filter" filter
+                                                     "limitSelects" limit-for-subselects
+                                                     "sortfield" sort-by-fields}
+                                                    generic-get-params)
+                                      :auth auth-token
+                                      :request-id request-id)))
+
 
 
 
@@ -157,17 +223,21 @@
 
   Ordering of items: :SORT-BY-FIELDS
   This parameter expects either a list or a single string."
-  [conn & {:keys [object-type host-ids item-ids sort-by-fields from to
+  [conn & {:keys [object-type host-ids item-ids
+                  sort-by-fields from to
                   request-id]
            :as all-kw-args
            :or {object-type :unint
                 sort-by-field   "clock"}}]
   (let [auth-token (get-auth-token conn)
+
         history-id (object-type->history-id object-type)
         host-ids (parse-list-or-single-id-param host-ids)
         item-ids (parse-list-or-single-id-param item-ids)
+
         from (ensure-inst-ts from)
         to (ensure-inst-ts to)
+
         generic-get-params (parse-generic-get-params all-kw-args)]
     (json-rpc-request-and-maybe-parse conn
                                       "history.get"
