@@ -201,6 +201,175 @@
                                       :auth auth-token
                                       :request-id request-id)))
 
+(defn eval-type->id [eval-type]
+  (get
+   {:and+or                0
+    :or                    2}
+   eval-type))
+
+(defn eval-operator->id [eval-operator]
+  (get
+   {:like                  0
+    :equal                 2}
+   eval-operator))
+
+(defn severity->id [severity]
+  (get
+   {:not-classified        0
+    :information           1
+    :warning               2
+    :average               3
+    :high                  4
+    :disaster              5}
+   severity))
+
+(defn event-source-type->source-id [source-type]
+  (get
+   {:trigger                0
+    :discovery-rule         1
+    :agent-autoregistration 2
+    :internal               3}
+   source-type))
+
+(defn event-object-type->object-id [source-type object-type]
+  (get-in
+   {:trigger
+    {:trigger 0}
+
+    :discovery-rule
+    {:discovered-host 1
+     :discovered-service 2}
+
+    :agent-autoregistration
+    {:autoregistered-host 3}
+
+    :internal
+    {:trigger 0
+     :item 4
+     :lld-rule 5}}
+   [source-type object-type]))
+
+(defn serialize-zabbix-tag-filter [tag-filter]
+  (let [{:keys [tag value operator]} tag-filter
+        operator (or operator :like)
+        operator-id (eval-operator->id operator)]
+    {"tag" tag
+     "value" value
+     "operator" operator-id}))
+
+(defn get-events
+  "Retrieve the list of events.
+
+  This corresponds to the [event.get](https://www.zabbix.com/documentation/current/manual/api/reference/event/get) method.
+  See also doc for the [event](https://www.zabbix.com/documentation/current/manual/api/reference/event/object) object.
+
+  Many filmtering options are available through optional keyword arguments.
+
+  Filter by instance ids: :EVENT-IDS :GROUP-IDS :HOST-IDS :OBJECT-IDS :APPLICATION-IDS.
+  All these parameters expects either a list or a single id.
+
+  Filter by type of event:
+  - :SOURCE-TYPE, in `#{ :trigger :discovery-rule :agent-autoregistration :internal }`
+  - :OBJECT-TYPE (depending of :SOURCE-TYPE, in:
+    ```
+    {:trigger #{:trigger}
+     :discovery-rule #{:discovered-host :discovered-service}
+     :agent-autoregistration #{:autoregistered-host}
+     :internal #{:trigger :item :lld-rule}}
+    ```
+
+  Filter by severity: :SEVERITY, in `#{ :not-classified :information :warning :average :high :disaster }`
+
+  Filter by tags w/ :EVAL-TYPE (#{:and+or :or}) and :TAG-FILTERS rules.
+  TAG-FILTERS is expected to be a vector formatted like so: `[{:tag \"<TAG_NAME>\" :value \"<FILTER_VALUE>\" :operator <OPERATOR>} ...]`.
+  <OPERATOR> in `#{:like :equal}`
+
+  Filter by event id range: :EVENTID-FROM :EVENTID-TO.
+
+  Filter by time range:
+  - of event generation: :FROM :TO
+  - of corresponding problems: :PROBLEM-T-FROM :PROBLEM-T-TO
+  All these allow both unix timestamp and Clojure insts.
+
+  Filter by values: :VALUES.
+  This can be either a list or a single value."
+  [conn & {:keys [event-ids group-ids host-ids object-ids application-ids
+                  source-type object-type
+                  acknowledged suppressed
+                  severities
+                  eval-type tag-filters
+                  from to problem-t-from problem-t-to eventid-from eventid-to values
+                  ;; select-hosts
+                  request-id]
+           :as all-kw-args
+           :or {}}]
+  (let [auth-token (get-auth-token conn)
+
+        event-ids (parse-list-or-single-id-param event-ids)
+        group-ids (parse-list-or-single-id-param group-ids)
+        host-ids (parse-list-or-single-id-param host-ids)
+        object-ids (parse-list-or-single-id-param object-ids)
+        application-ids (parse-list-or-single-id-param application-ids)
+
+        source-id (event-source-type->source-id source-type)
+        object-id (event-object-type->object-id source-type object-type)
+
+        severities (when severities
+                     (cond
+                       (coll? severities) (map severity->id severities)
+                       :default (severity->id severities)))
+
+        eval-type-id (eval-type->id eval-type)
+        tag-filters (into (empty tag-filters) (map serialize-zabbix-tag-filter tag-filters))
+
+        from (ensure-inst-ts from)
+        to (ensure-inst-ts to)
+        problem-t-from (ensure-inst-ts problem-t-from)
+        problem-t-to (ensure-inst-ts problem-t-to)
+
+        eventid-from (when eventid-from
+                       (str eventid-from))
+        eventid-to (when eventid-to
+                     (str eventid-to))
+
+        generic-get-params (parse-generic-get-params all-kw-args)]
+    (json-rpc-request-and-maybe-parse conn
+                                      "trend.get"
+                                      :params (into {"eventids" event-ids
+                                                     "groupids" group-ids
+                                                     "hostids" host-ids
+                                                     "objectids" object-ids
+                                                     "applicationids" application-ids
+
+                                                     "source" source-id
+                                                     "object" object-id
+
+                                                     "acknowledged" acknowledged
+                                                     "suppressed" suppressed
+
+                                                     "severities" severities
+
+                                                     "evaltype" eval-type-id
+                                                     "tags" tag-filters
+
+                                                     "time_from" from
+                                                     "time_till" to
+                                                     "problem_time_from" problem-t-from
+                                                     "problem_time_till" problem-t-to
+
+                                                     "eventid_from" eventid-from
+                                                     "eventid_till" eventid-to
+
+                                                     "value" values
+
+                                                     ;; "countOutput" count-output
+                                                     ;; "limit" limit
+                                                     ;; "output" output
+                                                     }
+                                                    generic-get-params)
+                                      :auth auth-token
+                                      :request-id request-id)))
+
 
 
 ;; HELPERS - HTTP
