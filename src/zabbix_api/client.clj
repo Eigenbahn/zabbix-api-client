@@ -151,8 +151,13 @@
 (defn get-history
   "Retrieve timeseries data for hosts / items.
 
-  This corresponds to the [history.get](https://www.zabbix.com/documentation/current/manual/api/reference/history/get) method."
-  [conn & {:keys [object-type host-ids item-ids sort-by-field from to
+  This corresponds to the [history.get](https://www.zabbix.com/documentation/current/manual/api/reference/history/get) method.
+
+  Many filmtering options are available through optional keyword arguments.
+
+  Ordering of items: :SORT-BY-FIELDS
+  This parameter expects either a list or a single string."
+  [conn & {:keys [object-type host-ids item-ids sort-by-fields from to
                   request-id]
            :as all-kw-args
            :or {object-type :unint
@@ -169,7 +174,7 @@
                                       :params (into {"history" history-id
                                                      "hostids" host-ids
                                                      "itemids" item-ids
-                                                     "sortfield" sort-by-field
+                                                     "sortfield" sort-by-fields
                                                      "time_from" from
                                                      "time_till" to}
                                                     generic-get-params)
@@ -266,7 +271,7 @@
   Many filmtering options are available through optional keyword arguments.
 
   Filter by instance ids: :EVENT-IDS :GROUP-IDS :HOST-IDS :OBJECT-IDS :APPLICATION-IDS.
-  All these parameters expects either a list or a single id.
+  All these parameters expect either a list or a single id.
 
   Filter by type of event:
   - :SOURCE-TYPE, in `#{ :trigger :discovery-rule :agent-autoregistration :internal }`
@@ -365,6 +370,90 @@
                                                      ;; "countOutput" count-output
                                                      ;; "limit" limit
                                                      ;; "output" output
+                                                     }
+                                                    generic-get-params)
+                                      :auth auth-token
+                                      :request-id request-id)))
+
+(defn get-problems
+  "Retrieve the list of problems.
+
+  This corresponds to the [problem.get](https://www.zabbix.com/documentation/current/manual/api/reference/problem/get) method.
+  See also doc for the [problem](https://www.zabbix.com/documentation/current/manual/api/reference/problem/object) object.
+
+  Many filmtering options are available through optional keyword arguments.
+
+  Ordering of items: :SORT-BY-FIELDS
+  This parameter expects either a list or a single string, even though the only accepted value is \"eventid\"."
+  [conn & {:keys [event-ids group-ids host-ids object-ids application-ids
+                  source-type object-type
+                  acknowledged suppressed
+                  severities
+                  eval-type tag-filters
+                  recent
+                  from to
+                  eventid-from eventid-to
+                  sort-by-fields
+                  request-id]
+           :as all-kw-args
+           :or {}}]
+  (let [auth-token (get-auth-token conn)
+
+        event-ids (parse-list-or-single-id-param event-ids)
+        group-ids (parse-list-or-single-id-param group-ids)
+        host-ids (parse-list-or-single-id-param host-ids)
+        object-ids (parse-list-or-single-id-param object-ids)
+        application-ids (parse-list-or-single-id-param application-ids)
+
+        source-id (event-source-type->source-id source-type)
+        object-id (event-object-type->object-id source-type object-type)
+
+        severities (when severities
+                     (cond
+                       (coll? severities) (map severity->id severities)
+                       :default (severity->id severities)))
+
+        eval-type-id (eval-type->id eval-type)
+        tag-filters (into (empty tag-filters) (map serialize-zabbix-tag-filter tag-filters))
+
+        from (ensure-inst-ts from)
+        to (ensure-inst-ts to)
+
+        eventid-from (when eventid-from
+                       (str eventid-from))
+        eventid-to (when eventid-to
+                     (str eventid-to))
+
+        generic-get-params (parse-generic-get-params all-kw-args)]
+    (json-rpc-request-and-maybe-parse conn
+                                      "problem.get"
+                                      :params (into {
+                                                     "eventids" event-ids
+                                                     "groupids" group-ids
+                                                     "hostids" host-ids
+                                                     "objectids" object-ids
+                                                     "applicationids" application-ids
+
+                                                     "source" source-id
+                                                     "object" object-id
+
+                                                     "acknowledged" acknowledged
+                                                     "suppressed" suppressed
+
+                                                     "severities" severities
+
+                                                     "evaltype" eval-type-id
+                                                     "tags" tag-filters
+
+                                                     "recent" recent
+
+                                                     "time_from" from
+                                                     "time_till" to
+
+                                                     "eventid_from" eventid-from
+                                                     "eventid_till" eventid-to
+
+                                                     "sortfield" sort-by-fields
                                                      }
                                                     generic-get-params)
                                       :auth auth-token
