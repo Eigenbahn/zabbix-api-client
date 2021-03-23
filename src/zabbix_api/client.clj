@@ -387,7 +387,7 @@
         application-ids (parse-list-or-single-id-param application-ids)
 
         source-id (event-source-type->source-id source-type)
-        object-id (event-object-type->object-id source-type object-type)
+        object-type-id (event-object-type->object-id source-type object-type)
 
         severities (when severities
                      (cond
@@ -417,7 +417,7 @@
                                                      "applicationids" application-ids
 
                                                      "source" source-id
-                                                     "object" object-id
+                                                     "object" object-type-id
 
                                                      "acknowledged" acknowledged
                                                      "suppressed" suppressed
@@ -476,7 +476,7 @@
         application-ids (parse-list-or-single-id-param application-ids)
 
         source-id (event-source-type->source-id source-type)
-        object-id (event-object-type->object-id source-type object-type)
+        object-type-id (event-object-type->object-id source-type object-type)
 
         severities (when severities
                      (cond
@@ -505,7 +505,7 @@
                                                      "applicationids" application-ids
 
                                                      "source" source-id
-                                                     "object" object-id
+                                                     "object" object-type-id
 
                                                      "acknowledged" acknowledged
                                                      "suppressed" suppressed
