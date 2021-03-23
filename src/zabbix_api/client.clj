@@ -23,7 +23,15 @@
          json-rpc-request-and-maybe-parse
          get-auth-token
          remove-nils ensure-inst-ts
-         clojurize-timed-collection)
+         clojurize-timed-collection
+
+         parse-generic-get-params
+         parse-list-or-single-id-param
+
+         object-type->history-id
+         eval-type->id eval-operator->id
+         event-source-type->source-id event-object-type->object-id
+         severity->id serialize-zabbix-tag-filter)
 
 
 
@@ -50,37 +58,16 @@
 
 
 (def ^:dynamic api-path
-  "Constant part in the API url.
+          "Constant part in the API url.
   Can be overridden e.g. in case of passing through a reverse proxy."
   "/api_jsonrpc.php")
 
 
 
-;; HELPERS - PARAMS
-
-(def generic-get-params-keywords
-  (->> ["countOutput" "editable" "excludeSearch" "filter" "limit" "output" "search" "searchByAny" "searchWildcardsEnabled" "sortorder" "startSearch"]
-       (map keyword)
-       set))
-
-(defn parse-generic-get-params [all-keyword-params]
-  (let [get-params (into (empty all-keyword-params) (filter #(generic-get-params-keywords (first %)) all-keyword-params))
-        get-params (into (empty get-params) (map (fn [[k v]] [(name k) v]) get-params))] ; convert back keywords into strings
-    (-> get-params
-        (assoc "filter" (or (get get-params "filter") {})))))
-
-(defn parse-list-or-single-id-param [p]
-  (when p
-    (cond
-      (coll? p) (map str p)
-      :default (str p))))
-
-
-
-;; GLOBAL
+;; API: GLOBAL
 
 (defn api-version
-  "Get the API version.
+        "Get the API version.
 
   No auth needed
 
@@ -89,8 +76,6 @@
   (json-rpc-request-and-maybe-parse conn
                                     "apiinfo.version"
                                     :request-id request-id))
-
-
 
 (defn auth
   "Authenticate & retrieve an auth token.
@@ -108,7 +93,7 @@
 
 
 
-;; DATA MODEL
+;; API: DATA MODEL
 
 (defn get-templates
   "Retrieve the list of host templates.
@@ -135,7 +120,7 @@
                                       :request-id request-id)))
 
 (defn get-items
-  "Retrieve the list of items.
+    "Retrieve the list of items.
 
   This corresponds to the [item.get](https://www.zabbix.com/documentation/current/manual/api/reference/item/get) method."
   [conn & {:keys [item-ids group-ids template-ids host-ids
@@ -202,7 +187,7 @@
                                       :request-id request-id)))
 
 (defn get-triggers
-  "Retrieve the list of triggers.
+        "Retrieve the list of triggers.
 
   This corresponds to the [trigger.get](https://www.zabbix.com/documentation/current/manual/api/reference/trigger/get) method."
   [conn & {:keys [trigger-ids group-ids template-ids host-ids item-ids application-ids
@@ -277,16 +262,7 @@
 
 
 
-;; VOLATILE DATA
-
-(defn object-type->history-id [object-type]
-  (get
-   {:float 0
-    :char  1
-    :log   2
-    :unint 3
-    :text  4}
-   object-type))
+;; API: VOLATILE DATA
 
 (defn get-history
   "Retrieve timeseries data for hosts / items.
@@ -326,7 +302,7 @@
                                       :request-id request-id)))
 
 (defn get-trends
-  "Retrieve the list of trends.
+      "Retrieve the list of trends.
 
   This corresponds to the [trend.get](https://www.zabbix.com/documentation/current/manual/api/reference/trend/get) method."
   [conn & {:keys [item-ids from to count-output limit output
@@ -349,62 +325,6 @@
                                                     generic-get-params)
                                       :auth auth-token
                                       :request-id request-id)))
-
-(defn eval-type->id [eval-type]
-  (get
-   {:and+or                0
-    :or                    2}
-   eval-type))
-
-(defn eval-operator->id [eval-operator]
-  (get
-   {:like                  0
-    :equal                 2}
-   eval-operator))
-
-(defn severity->id [severity]
-  (get
-   {:not-classified        0
-    :information           1
-    :warning               2
-    :average               3
-    :high                  4
-    :disaster              5}
-   severity))
-
-(defn event-source-type->source-id [source-type]
-  (get
-   {:trigger                0
-    :discovery-rule         1
-    :agent-autoregistration 2
-    :internal               3}
-   source-type))
-
-(defn event-object-type->object-id [source-type object-type]
-  (get-in
-   {:trigger
-    {:trigger 0}
-
-    :discovery-rule
-    {:discovered-host 1
-     :discovered-service 2}
-
-    :agent-autoregistration
-    {:autoregistered-host 3}
-
-    :internal
-    {:trigger 0
-     :item 4
-     :lld-rule 5}}
-   [source-type object-type]))
-
-(defn serialize-zabbix-tag-filter [tag-filter]
-  (let [{:keys [tag value operator]} tag-filter
-        operator (or operator :like)
-        operator-id (eval-operator->id operator)]
-    {"tag" tag
-     "value" value
-     "operator" operator-id}))
 
 (defn get-events
   "Retrieve the list of events.
@@ -520,7 +440,7 @@
                                       :request-id request-id)))
 
 (defn get-problems
-  "Retrieve the list of problems.
+                                              "Retrieve the list of problems.
 
   This corresponds to the [problem.get](https://www.zabbix.com/documentation/current/manual/api/reference/problem/get) method.
   See also doc for the [problem](https://www.zabbix.com/documentation/current/manual/api/reference/problem/object) object.
@@ -605,64 +525,157 @@
 
 
 
+;; IMPL - COMMON
+
+(defn severity->id [severity]
+  (get
+   {:not-classified        0
+    :information           1
+    :warning               2
+    :average               3
+    :high                  4
+    :disaster              5}
+   severity))
+
+(defn serialize-zabbix-tag-filter [tag-filter]
+  (let [{:keys [tag value operator]} tag-filter
+        operator (or operator :like)
+        operator-id (eval-operator->id operator)]
+    {"tag" tag
+     "value" value
+     "operator" operator-id}))
+
+
+
+;; IMPL - API: VOLATILE DATA
+
+(defn object-type->history-id [object-type]
+                                                            (get
+   {:float 0
+                                 :char  1
+                                 :log   2
+                                 :unint 3
+                                 :text  4}
+   object-type))
+
+(defn eval-type->id [eval-type]
+  (get
+   {:and+or                0
+    :or                    2}
+   eval-type))
+
+(defn eval-operator->id [eval-operator]
+      (get
+   {:like                  0
+      :equal                 2}
+   eval-operator))
+
+(defn event-source-type->source-id [source-type]
+      (get
+   {:trigger                0
+      :discovery-rule         1
+      :agent-autoregistration 2
+      :internal               3}
+   source-type))
+
+(defn event-object-type->object-id [source-type object-type]
+        (get-in
+   {:trigger
+       {:trigger 0}
+
+       :discovery-rule
+       {:discovered-host 1
+        :discovered-service 2}
+
+       :agent-autoregistration
+       {:autoregistered-host 3}
+
+       :internal
+       {:trigger 0
+        :item 4
+        :lld-rule 5}}
+   [source-type object-type]))
+
+
+
+;; HELPERS - PARAMS
+
+(def generic-get-params-keywords
+  (->> ["countOutput" "editable" "excludeSearch" "filter" "limit" "output" "search" "searchByAny" "searchWildcardsEnabled" "sortorder" "startSearch"]
+       (map keyword)
+       set))
+
+(defn parse-generic-get-params [all-keyword-params]
+  (let [get-params (into (empty all-keyword-params) (filter #(generic-get-params-keywords (first %)) all-keyword-params))
+        get-params (into (empty get-params) (map (fn [[k v]] [(name k) v]) get-params))] ; convert back keywords into strings
+    (-> get-params
+        (assoc "filter" (or (get get-params "filter") {})))))
+
+(defn parse-list-or-single-id-param [p]
+  (when p
+    (cond
+      (coll? p) (map str p)
+      :default (str p))))
+
+
+
 ;; HELPERS - HTTP
 
 (defn json-rpc-request-and-maybe-parse [conn method & {:keys [auth params request-id]
                                                        :or   {params {}}}]
-  (let [url (str (:url conn) api-path)
-        rq-body {"jsonrpc" "2.0"
-                 "method"  method
-                 "id"      (or request-id 1)
-                 "auth"    auth
-                 "params"  (remove-nils params)}
-        raw-resp (http-client/post url {:accept :json
-                                        :content-type :json
-                                        :body (json/write-value-as-string rq-body)
-                                        })]
-    (if (= content-level ::http-client)
-      raw-resp
+                                                                                                                                                                                                                                                                                                                  (let [url (str (:url conn) api-path)
+                                                                                                                                                                rq-body {"jsonrpc" "2.0"
+                                                                                                                                                                         "method"  method
+                                                                                                                                                                         "id"      (or request-id 1)
+                                                                                                                                                                         "auth"    auth
+                                                                                                                                                                         "params"  (remove-nils params)}
+                                                                                                                                                                raw-resp (http-client/post url {:accept :json
+                                                                                                                                                                                                :content-type :json
+                                                                                                                                                                                                :body (json/write-value-as-string rq-body)
+                                                                                                                                                                                                })]
+                                                                                                                                                            (if (= content-level ::http-client)
+                                                                                                                                                              raw-resp
 
-      (let [body (-> raw-resp
+                 (let [body (-> raw-resp
                      :body
                      json/read-value)]
-        (case content-level
-          ::body
-          body
+                                                                                                                                                                (case content-level
+                                                                                                                                                                  ::body
+                     body
 
-          ::data
-          (get body "result")
+                     ::data
+                     (get body "result")
 
-          ::best
-          (let [result (get body "result")]
-            (if (and (coll? result)
+                     ::best
+                     (let [result (get body "result")]
+                                                                                                                                                                    (if (and (coll? result)
                      (map? (first result))
                      (member? "clock" (keys (first result))))
-              (clojurize-timed-collection result)
-              result))
+                                                                                                                                                                      (clojurize-timed-collection result)
+                         result))
 
-          (throw (ex-info "Unexpected `content-level`" {:ex-type ::unexpected-content-level,
-                                                        :input content-level})))))))
+                     (throw (ex-info "Unexpected `content-level`" {:ex-type ::unexpected-content-level,
+                                                                                                                                                                                                                :input content-level})))))))
 
 (defn get-auth-token [conn]
-  (binding [content-level ::data]
-    (auth conn)))
-
+    (binding [content-level ::data]
+     (auth conn)))
 
 
 
 ;; HELPERS: GENERIC
 
 (defn keep-vals-in-coll
-  "Return new collection of same type as COLL with only elements whose values satisfy PREDICATE."
-  [coll predicate]
-  (when (not (coll? coll))
-    (throw (ex-info "Argument `coll` is not a collection"
+    "Return new collection of same type as COLL with only elements whose values satisfy PREDICATE."
+    [coll predicate]
+    (when (not (coll? coll))
+     (throw (ex-info "Argument `coll` is not a collection"
                     {:ex-type :unexpected-type,
-                     :coll coll})))
-  (let [predicate (if (map? coll)
-                    (comp predicate val)
+                      :coll coll})))
+    (let [predicate (if (map? coll)
+                     (comp predicate val)
                     predicate)]
-    (into (empty coll) (filter predicate coll))))
+     (into (empty coll) (filter predicate coll))))
 
 (defn remove-vals-in-coll
   "Return new collection of same type as COLL with elements whose values satisfy PREDICATE removed."
