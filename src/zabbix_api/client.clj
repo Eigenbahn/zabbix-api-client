@@ -147,6 +147,7 @@
                   hosts-q interfaces-q triggers-q applications-q
                   discovery-rule-q item-discovery-q preprocessing-q
                   filter limit-for-subselects sort-by-fields
+
                   request-id]
            :as all-kw-args}]
   (let [auth-token (get-auth-token conn)
@@ -192,6 +193,79 @@
                                                      "selectDiscoveryRule" discovery-rule-q
                                                      "selectItemDiscovery" item-discovery-q
                                                      "selectPreprocessing" preprocessing-q
+
+                                                     "filter" filter
+                                                     "limitSelects" limit-for-subselects
+                                                     "sortfield" sort-by-fields}
+                                                    generic-get-params)
+                                      :auth auth-token
+                                      :request-id request-id)))
+
+(defn get-triggers
+  "Retrieve the list of triggers.
+
+  This corresponds to the [trigger.get](https://www.zabbix.com/documentation/current/manual/api/reference/trigger/get) method."
+  [conn & {:keys [trigger-ids group-ids template-ids host-ids item-ids application-ids
+                  functions
+                  group host
+                  inherited templated dependant
+                  monitored active      ; flags
+                  maintenance
+
+                  tag-filters
+
+                  groups-q hosts-q items-q functions-q
+                  discovery-rule-q last-event-q tags-q trigger-discovery-q
+
+                  filter
+                  limit-for-subselects
+                  sort-by-fields
+
+                  request-id]
+           :as all-kw-args}]
+  (let [auth-token (get-auth-token conn)
+
+        trigger-ids (parse-list-or-single-id-param trigger-ids)
+        group-ids (parse-list-or-single-id-param group-ids)
+        template-ids (parse-list-or-single-id-param template-ids)
+        host-ids (parse-list-or-single-id-param host-ids)
+        item-ids (parse-list-or-single-id-param item-ids)
+        application-ids (parse-list-or-single-id-param application-ids)
+
+        tag-filters (into (empty tag-filters) (map serialize-zabbix-tag-filter tag-filters))
+
+        generic-get-params (parse-generic-get-params all-kw-args)]
+    (json-rpc-request-and-maybe-parse conn
+                                      "item.get"
+                                      :params (into {"triggerids" trigger-ids
+                                                     "groupids" group-ids
+                                                     "templateids" template-ids
+                                                     "hostids" host-ids
+                                                     "itemids" item-ids
+                                                     "applicationids" application-ids
+
+                                                     "functions" functions
+
+                                                     "group" group
+                                                     "host" host
+
+                                                     "inherited" inherited
+                                                     "templated" templated
+                                                     "dependant" dependant
+                                                     "monitored" monitored
+                                                     "active" active
+                                                     "maintenance" maintenance
+
+                                                     "tags" tag-filters
+
+                                                     ;; select queries
+                                                     "selectGroups" groups-q
+                                                     "selectHosts" hosts-q
+                                                     "selectItems" items-q
+                                                     "selectDiscoveryRule" discovery-rule-q
+                                                     "selectLastEvent" last-event-q
+                                                     "selectTags" tags-q
+                                                     "selectTriggerDiscovery" trigger-discovery-q
 
                                                      "filter" filter
                                                      "limitSelects" limit-for-subselects
