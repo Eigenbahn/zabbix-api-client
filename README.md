@@ -62,6 +62,32 @@ Manual retrieval of an auth token is possible by calling the `auth` method.
 ;;    ]
 ```
 
+#### applications list
+
+```clojure
+(get-templates zabbix-conn)
+;; -> [{"applicationid" "345",
+;;      "flags" "0",
+;;      "name" "Zabbix server",
+;;      "hostid" "10084",
+;;      "templateids" ["179"]},
+;;     ;; [...]
+;;    ]
+```
+
+And with filtering options:
+
+```clojure
+;; only those on (host) templates:
+(get-templates zabbix-conn :templated true)
+
+;; only those (copied) on hosts:
+(get-templates zabbix-conn :inherited true)
+
+;; only those on templates but with no host (yet) inheriting them:
+(get-templates zabbix-conn :templated true :inherited true)
+```
+
 #### hosts list
 
 ```clojure
