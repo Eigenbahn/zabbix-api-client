@@ -125,7 +125,7 @@
         host-ids (parse-list-or-single-id-param host-ids)
         item-ids (parse-list-or-single-id-param item-ids)
 
-        ]
+        generic-get-params (parse-generic-get-params all-kw-args)]
 
     (json-rpc-request-and-maybe-parse conn
                                       "application.get"
@@ -144,7 +144,7 @@
                                                      "selectApplicationDiscovery" application-discovery-q
 
                                                      "sortfield" sort-by-fields}
-                                                    (parse-generic-get-params all-kw-args))
+                                                    generic-get-params)
                                       :auth auth-token
                                       :request-id request-id)))
 
