@@ -99,11 +99,46 @@
   "Retrieve the list of host templates.
 
   This corresponds to the [template.get](https://www.zabbix.com/documentation/current/manual/api/reference/template/get) method."
-  [conn & {:keys [request-id] :as all-kw-args}]
-  (let [auth-token (get-auth-token conn)]
+  [conn & {:keys [template-ids parent-template-ids group-ids host-ids graph-ids item-ids trigger-ids
+                  with-items with-triggers with-graphs with-httptests
+                  eval-type tag-filters
+                  sort-by-fields
+                  request-id]
+           :as all-kw-args}]
+  (let [auth-token (get-auth-token conn)
+
+        template-ids (parse-list-or-single-id-param template-ids)
+        parent-template-ids (parse-list-or-single-id-param parent-template-ids)
+        group-ids (parse-list-or-single-id-param group-ids)
+        host-ids (parse-list-or-single-id-param host-ids)
+        graph-ids (parse-list-or-single-id-param graph-ids)
+        item-ids (parse-list-or-single-id-param item-ids)
+        trigger-ids (parse-list-or-single-id-param trigger-ids)
+
+        eval-type-id (eval-type->id eval-type)
+        tag-filters (into (empty tag-filters) (map serialize-zabbix-tag-filter tag-filters))
+
+        generic-get-params (parse-generic-get-params all-kw-args)]
     (json-rpc-request-and-maybe-parse conn
                                       "template.get"
-                                      :params (parse-generic-get-params all-kw-args)
+                                      :params (into {"templateids" template-ids
+                                                     "parentTemplateids" parent-template-ids
+                                                     "groupids" group-ids
+                                                     "hostids" host-ids
+                                                     "graphids" graph-ids
+                                                     "itemids" item-ids
+                                                     "triggerids" trigger-ids
+
+                                                     "with_items" with-items
+                                                     "with_triggers" with-triggers
+                                                     "with_graphs" with-graphs
+                                                     "with_httptests" with-httptests
+
+                                                     "evaltype" eval-type-id
+                                                     "tags" tag-filters
+
+                                                     "sortfield" sort-by-fields}
+                                                    generic-get-params)
                                       :auth auth-token
                                       :request-id request-id)))
 
