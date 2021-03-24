@@ -151,7 +151,7 @@
   [conn & {:keys [application-ids group-ids template-ids host-ids item-ids
                   inherited templated
                   hosts-q items-q discovery-rule-q application-discovery-q
-                  sortfield
+                  sort-by-fields
                   request-id] :as all-kw-args}]
   (let [auth-token (get-auth-token conn)
 
