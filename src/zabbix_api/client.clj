@@ -58,7 +58,7 @@
 
 
 (def ^:dynamic api-path
-          "Constant part in the API url.
+  "Constant part in the API url.
   Can be overridden e.g. in case of passing through a reverse proxy."
   "/api_jsonrpc.php")
 
@@ -67,7 +67,7 @@
 ;; API: GLOBAL
 
 (defn api-version
-        "Get the API version.
+  "Get the API version.
 
   No auth needed
 
@@ -520,7 +520,7 @@
                                       :request-id request-id)))
 
 (defn get-problems
-                                              "Retrieve the list of problems.
+  "Retrieve the list of problems.
 
   This corresponds to the [problem.get](https://www.zabbix.com/documentation/current/manual/api/reference/problem/get) method.
   See also doc for the [problem](https://www.zabbix.com/documentation/current/manual/api/reference/problem/object) object.
@@ -630,12 +630,12 @@
 ;; IMPL - API: VOLATILE DATA
 
 (defn object-type->history-id [object-type]
-                                                            (get
+  (get
    {:float 0
-                                 :char  1
-                                 :log   2
-                                 :unint 3
-                                 :text  4}
+    :char  1
+    :log   2
+    :unint 3
+    :text  4}
    object-type))
 
 (defn eval-type->id [eval-type]
@@ -645,35 +645,35 @@
    eval-type))
 
 (defn eval-operator->id [eval-operator]
-      (get
+  (get
    {:like                  0
-      :equal                 2}
+    :equal                 2}
    eval-operator))
 
 (defn event-source-type->source-id [source-type]
-      (get
+  (get
    {:trigger                0
-      :discovery-rule         1
-      :agent-autoregistration 2
-      :internal               3}
+    :discovery-rule         1
+    :agent-autoregistration 2
+    :internal               3}
    source-type))
 
 (defn event-object-type->object-id [source-type object-type]
-        (get-in
+  (get-in
    {:trigger
-       {:trigger 0}
+    {:trigger 0}
 
-       :discovery-rule
-       {:discovered-host 1
-        :discovered-service 2}
+    :discovery-rule
+    {:discovered-host 1
+     :discovered-service 2}
 
-       :agent-autoregistration
-       {:autoregistered-host 3}
+    :agent-autoregistration
+    {:autoregistered-host 3}
 
-       :internal
-       {:trigger 0
-        :item 4
-        :lld-rule 5}}
+    :internal
+    {:trigger 0
+     :item 4
+     :lld-rule 5}}
    [source-type object-type]))
 
 
@@ -737,24 +737,24 @@
                                                         :input content-level})))))))
 
 (defn get-auth-token [conn]
-    (binding [content-level ::data]
-     (auth conn)))
+  (binding [content-level ::data]
+    (auth conn)))
 
 
 
 ;; HELPERS: GENERIC
 
 (defn keep-vals-in-coll
-    "Return new collection of same type as COLL with only elements whose values satisfy PREDICATE."
-    [coll predicate]
-    (when (not (coll? coll))
-     (throw (ex-info "Argument `coll` is not a collection"
+  "Return new collection of same type as COLL with only elements whose values satisfy PREDICATE."
+  [coll predicate]
+  (when (not (coll? coll))
+    (throw (ex-info "Argument `coll` is not a collection"
                     {:ex-type :unexpected-type,
-                      :coll coll})))
-    (let [predicate (if (map? coll)
-                     (comp predicate val)
+                     :coll coll})))
+  (let [predicate (if (map? coll)
+                    (comp predicate val)
                     predicate)]
-     (into (empty coll) (filter predicate coll))))
+    (into (empty coll) (filter predicate coll))))
 
 (defn remove-vals-in-coll
   "Return new collection of same type as COLL with elements whose values satisfy PREDICATE removed."
