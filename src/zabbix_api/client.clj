@@ -112,11 +112,39 @@
 
   This corresponds to the [application.get](https://www.zabbix.com/documentation/current/manual/api/reference/application/get) method.
   See also doc for the [application](https://www.zabbix.com/documentation/current/manual/api/reference/application/object) object."
-  [conn & {:keys [request-id] :as all-kw-args}]
-  (let [auth-token (get-auth-token conn)]
+  [conn & {:keys [application-ids group-ids template-ids host-ids item-ids
+                  inherited templated
+                  hosts-q items-q discovery-rule-q application-discovery-q
+                  sortfield
+                  request-id] :as all-kw-args}]
+  (let [auth-token (get-auth-token conn)
+
+        application-ids (parse-list-or-single-id-param application-ids)
+        group-ids (parse-list-or-single-id-param group-ids)
+        template-ids (parse-list-or-single-id-param template-ids)
+        host-ids (parse-list-or-single-id-param host-ids)
+        item-ids (parse-list-or-single-id-param item-ids)
+
+        ]
+
     (json-rpc-request-and-maybe-parse conn
                                       "application.get"
-                                      :params (parse-generic-get-params all-kw-args)
+                                      :params (into {"itemids" item-ids
+                                                     "groupids" group-ids
+                                                     "templateids" template-ids
+                                                     "hostids" host-ids
+                                                     "applicationids" application-ids
+
+                                                     "inherited" inherited
+                                                     "templated" templated
+
+                                                     "selectHosts" hosts-q
+                                                     "selectItems" items-q
+                                                     "selectDiscoveryRule" discovery-rule-q
+                                                     "selectApplicationDiscovery" application-discovery-q
+
+                                                     "sortfield" sort-by-fields}
+                                                    (parse-generic-get-params all-kw-args))
                                       :auth auth-token
                                       :request-id request-id)))
 
