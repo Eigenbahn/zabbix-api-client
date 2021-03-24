@@ -187,7 +187,8 @@
 (defn get-hosts
   "Retrieve the list of hosts.
 
-  This corresponds to the [host.get](https://www.zabbix.com/documentation/current/manual/api/reference/host/get) method."
+  This corresponds to the [host.get](https://www.zabbix.com/documentation/current/manual/api/reference/host/get) method.
+  See also doc for the [host](https://www.zabbix.com/documentation/current/manual/api/reference/host/object) object."
   [conn & {:keys [request-id] :as all-kw-args}]
   (let [auth-token (get-auth-token conn)]
     (json-rpc-request-and-maybe-parse conn
@@ -199,7 +200,8 @@
 (defn get-items
   "Retrieve the list of items.
 
-  This corresponds to the [item.get](https://www.zabbix.com/documentation/current/manual/api/reference/item/get) method."
+  This corresponds to the [item.get](https://www.zabbix.com/documentation/current/manual/api/reference/item/get) method.
+  See also doc for the [item](https://www.zabbix.com/documentation/current/manual/api/reference/item/object) object."
   [conn & {:keys [item-ids group-ids template-ids host-ids
                   proxy-ids interface-ids graph-ids trigger-ids application-ids
                   ;; webitems
@@ -266,7 +268,8 @@
 (defn get-triggers
   "Retrieve the list of triggers.
 
-  This corresponds to the [trigger.get](https://www.zabbix.com/documentation/current/manual/api/reference/trigger/get) method."
+  This corresponds to the [trigger.get](https://www.zabbix.com/documentation/current/manual/api/reference/trigger/get) method.
+  See also doc for the [trigger](https://www.zabbix.com/documentation/current/manual/api/reference/trigger/object) object."
   [conn & {:keys [trigger-ids group-ids template-ids host-ids item-ids application-ids
                   functions
                   group host
@@ -344,6 +347,7 @@
   "Retrieve timeseries data for hosts / items.
 
   This corresponds to the [history.get](https://www.zabbix.com/documentation/current/manual/api/reference/history/get) method.
+  See also doc for the [history](https://www.zabbix.com/documentation/current/manual/api/reference/history/object) object.
 
   Many filmtering options are available through optional keyword arguments.
 
