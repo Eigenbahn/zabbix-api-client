@@ -107,6 +107,19 @@
                                       :auth auth-token
                                       :request-id request-id)))
 
+(defn get-applications
+  "Retrieve the list of applications.
+
+  This corresponds to the [application.get](https://www.zabbix.com/documentation/current/manual/api/reference/application/get) method.
+  See also doc for the [application](https://www.zabbix.com/documentation/current/manual/api/reference/application/object) object."
+  [conn & {:keys [request-id] :as all-kw-args}]
+  (let [auth-token (get-auth-token conn)]
+    (json-rpc-request-and-maybe-parse conn
+                                      "application.get"
+                                      :params (parse-generic-get-params all-kw-args)
+                                      :auth auth-token
+                                      :request-id request-id)))
+
 (defn get-hosts
   "Retrieve the list of hosts.
 
@@ -120,7 +133,7 @@
                                       :request-id request-id)))
 
 (defn get-items
-    "Retrieve the list of items.
+  "Retrieve the list of items.
 
   This corresponds to the [item.get](https://www.zabbix.com/documentation/current/manual/api/reference/item/get) method."
   [conn & {:keys [item-ids group-ids template-ids host-ids
@@ -187,7 +200,7 @@
                                       :request-id request-id)))
 
 (defn get-triggers
-        "Retrieve the list of triggers.
+  "Retrieve the list of triggers.
 
   This corresponds to the [trigger.get](https://www.zabbix.com/documentation/current/manual/api/reference/trigger/get) method."
   [conn & {:keys [trigger-ids group-ids template-ids host-ids item-ids application-ids
@@ -260,7 +273,6 @@
                                       :request-id request-id)))
 
 
-
 
 ;; API: VOLATILE DATA
 
@@ -302,7 +314,7 @@
                                       :request-id request-id)))
 
 (defn get-trends
-      "Retrieve the list of trends.
+  "Retrieve the list of trends.
 
   This corresponds to the [trend.get](https://www.zabbix.com/documentation/current/manual/api/reference/trend/get) method."
   [conn & {:keys [item-ids from to count-output limit output
@@ -623,39 +635,38 @@
 
 (defn json-rpc-request-and-maybe-parse [conn method & {:keys [auth params request-id]
                                                        :or   {params {}}}]
-                                                                                                                                                                                                                                                                                                                  (let [url (str (:url conn) api-path)
-                                                                                                                                                                rq-body {"jsonrpc" "2.0"
-                                                                                                                                                                         "method"  method
-                                                                                                                                                                         "id"      (or request-id 1)
-                                                                                                                                                                         "auth"    auth
-                                                                                                                                                                         "params"  (remove-nils params)}
-                                                                                                                                                                raw-resp (http-client/post url {:accept :json
-                                                                                                                                                                                                :content-type :json
-                                                                                                                                                                                                :body (json/write-value-as-string rq-body)
-                                                                                                                                                                                                })]
-                                                                                                                                                            (if (= content-level ::http-client)
-                                                                                                                                                              raw-resp
+  (let [url (str (:url conn) api-path)
+        rq-body {"jsonrpc" "2.0"
+                 "method"  method
+                 "id"      (or request-id 1)
+                 "auth"    auth
+                 "params"  (remove-nils params)}
+        raw-resp (http-client/post url {:accept :json
+                                        :content-type :json
+                                        :body (json/write-value-as-string rq-body)})]
+    (if (= content-level ::http-client)
+      raw-resp
 
-                 (let [body (-> raw-resp
+      (let [body (-> raw-resp
                      :body
                      json/read-value)]
-                                                                                                                                                                (case content-level
-                                                                                                                                                                  ::body
-                     body
+        (case content-level
+          ::body
+          body
 
-                     ::data
-                     (get body "result")
+          ::data
+          (get body "result")
 
-                     ::best
-                     (let [result (get body "result")]
-                                                                                                                                                                    (if (and (coll? result)
+          ::best
+          (let [result (get body "result")]
+            (if (and (coll? result)
                      (map? (first result))
                      (member? "clock" (keys (first result))))
-                                                                                                                                                                      (clojurize-timed-collection result)
-                         result))
+              (clojurize-timed-collection result)
+              result))
 
-                     (throw (ex-info "Unexpected `content-level`" {:ex-type ::unexpected-content-level,
-                                                                                                                                                                                                                :input content-level})))))))
+          (throw (ex-info "Unexpected `content-level`" {:ex-type ::unexpected-content-level,
+                                                        :input content-level})))))))
 
 (defn get-auth-token [conn]
     (binding [content-level ::data]
