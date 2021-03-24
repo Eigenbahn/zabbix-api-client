@@ -99,7 +99,7 @@
   "Retrieve the list of host templates.
 
   This corresponds to the [template.get](https://www.zabbix.com/documentation/current/manual/api/reference/template/get) method.
-  See also doc for the [application](https://www.zabbix.com/documentation/current/manual/api/reference/template/object) object."
+  See also doc for the [template](https://www.zabbix.com/documentation/current/manual/api/reference/template/object) object."
   [conn & {:keys [template-ids parent-template-ids group-ids host-ids graph-ids item-ids trigger-ids
                   with-items with-triggers with-graphs with-httptests
                   eval-type tag-filters
