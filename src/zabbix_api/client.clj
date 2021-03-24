@@ -189,11 +189,75 @@
 
   This corresponds to the [host.get](https://www.zabbix.com/documentation/current/manual/api/reference/host/get) method.
   See also doc for the [host](https://www.zabbix.com/documentation/current/manual/api/reference/host/object) object."
-  [conn & {:keys [request-id] :as all-kw-args}]
-  (let [auth-token (get-auth-token conn)]
+  [conn & {:keys [group-ids application-ids discovered-service-ids
+                  graph-ids host-ids web-check-ids interface-ids
+                  item-ids maintenance-ids proxy-ids template-ids trigger-ids
+                  monitored-hosts proxy-hosts templated-hosts ; flags
+
+                  severities
+                  eval-type tag-filters
+                  inherited-tags        ; bool
+
+                  filter search inventory-search limit-for-subselects sort-by-fields
+
+                  request-id]
+           :as all-kw-args}]
+  (let [auth-token (get-auth-token conn)
+
+        group-ids (parse-list-or-single-id-param group-ids)
+        application-ids (parse-list-or-single-id-param application-ids)
+        discovered-service-ids (parse-list-or-single-id-param discovered-service-ids)
+        graph-ids (parse-list-or-single-id-param graph-ids)
+        host-ids (parse-list-or-single-id-param host-ids)
+        web-check-ids (parse-list-or-single-id-param web-check-ids)
+        interface-ids (parse-list-or-single-id-param interface-ids)
+        item-ids (parse-list-or-single-id-param item-ids)
+        maintenance-ids (parse-list-or-single-id-param maintenance-ids)
+        proxy-ids (parse-list-or-single-id-param proxy-ids)
+        template-ids (parse-list-or-single-id-param template-ids)
+        trigger-ids (parse-list-or-single-id-param trigger-ids)
+
+        severities (when severities
+                     (cond
+                       (coll? severities) (map severity->id severities)
+                       :default (severity->id severities)))
+
+        eval-type-id (eval-type->id eval-type)
+        tag-filters (into (empty tag-filters) (map serialize-zabbix-tag-filter tag-filters))
+
+        generic-get-params (parse-generic-get-params all-kw-args)]
     (json-rpc-request-and-maybe-parse conn
                                       "host.get"
-                                      :params (parse-generic-get-params all-kw-args)
+                                      :params (into {"groupids" group-ids
+                                                     "applicationids" application-ids
+                                                     "dserviceids" discovered-service-ids
+                                                     "graphids" graph-ids
+                                                     "hostids" host-ids
+                                                     "httptestids" web-check-ids
+                                                     "interfaceids" interface-ids
+                                                     "itemids" item-ids
+                                                     "maintenanceids" maintenance-ids
+                                                     "proxyids" proxy-ids
+                                                     "templateids" template-ids
+                                                     "triggerids" trigger-ids
+
+                                                     "monitored_hosts" monitored-hosts
+                                                     "proxy_hosts" proxy-hosts
+                                                     "templated_hosts" templated-hosts
+
+                                                     "severities" severities
+
+                                                     "evaltype" eval-type-id
+                                                     "tags" tag-filters
+
+                                                     "inheritedTags" inherited-tags
+
+                                                     "filter" filter
+                                                     "search" search
+                                                     "searchInventory" inventory-search
+                                                     "limitSelects" limit-for-subselects
+                                                     "sortfield" sort-by-fields}
+                                                    generic-get-params)
                                       :auth auth-token
                                       :request-id request-id)))
 
