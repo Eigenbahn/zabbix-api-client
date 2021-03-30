@@ -81,11 +81,17 @@ And with filtering options:
 ;; only those on (host) templates:
 (get-templates zabbix-conn :templated true)
 
-;; only those (copied) on hosts:
+;; only those on hosts (not templates):
+(get-templates zabbix-conn :templated false)
+
+;; only those on hosts and inherited from templates:
 (get-templates zabbix-conn :inherited true)
 
+;; only those local to hosts (not inherited):
+(get-templates zabbix-conn :templated false :inherited false)
+
 ;; only those on templates but with no host (yet) inheriting them:
-(get-templates zabbix-conn :templated true :inherited true)
+(get-templates zabbix-conn :templated true :inherited false)
 ```
 
 #### hosts list
