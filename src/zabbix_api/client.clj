@@ -391,6 +391,7 @@
                                                      "selectGroups" groups-q
                                                      "selectHosts" hosts-q
                                                      "selectItems" items-q
+                                                     "selectFunctions" functions-q
                                                      "selectDiscoveryRule" discovery-rule-q
                                                      "selectLastEvent" last-event-q
                                                      "selectTags" tags-q
