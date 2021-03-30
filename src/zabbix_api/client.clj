@@ -365,7 +365,7 @@
 
         generic-get-params (parse-generic-get-params all-kw-args)]
     (json-rpc-request-and-maybe-parse conn
-                                      "item.get"
+                                      "trigger.get"
                                       :params (into {"triggerids" trigger-ids
                                                      "groupids" group-ids
                                                      "templateids" template-ids
