@@ -514,6 +514,7 @@
                   eval-type tag-filters
                   from to problem-t-from problem-t-to eventid-from eventid-to values
                   ;; select-hosts
+                  sort-by-fields
                   request-id]
            :as all-kw-args
            :or {}}]
@@ -548,7 +549,7 @@
 
         generic-get-params (parse-generic-get-params all-kw-args)]
     (json-rpc-request-and-maybe-parse conn
-                                      "trend.get"
+                                      "event.get"
                                       :params (into {"eventids" event-ids
                                                      "groupids" group-ids
                                                      "hostids" host-ids
@@ -576,9 +577,7 @@
 
                                                      "value" values
 
-                                                     ;; "countOutput" count-output
-                                                     ;; "limit" limit
-                                                     ;; "output" output
+                                                     "sortfield" sort-by-fields
                                                      }
                                                     generic-get-params)
                                       :auth auth-token
