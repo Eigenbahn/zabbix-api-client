@@ -19,7 +19,7 @@
   (:use [slingshot.slingshot :only [try+]]))
 
 
-(declare member?
+(declare member? read-string-maybe zabbix-get-in-map
          json-rpc-request-and-maybe-parse
          get-auth-token
          remove-nils ensure-inst-ts
@@ -671,15 +671,16 @@
 
 ;; IMPL - COMMON
 
-(defn severity->id [severity]
-  (get
-   {:not-classified        0
-    :information           1
-    :warning               2
-    :average               3
-    :high                  4
-    :disaster              5}
-   severity))
+(def severity-map
+  {:not-classified        0
+   :information           1
+   :warning               2
+   :average               3
+   :high                  4
+   :disaster              5})
+
+(defn severity->id [v]
+  (zabbix-get-in-map severity-map v))
 
 (defn serialize-zabbix-tag-filter [tag-filter]
   (let [{:keys [tag value operator]} tag-filter
@@ -693,52 +694,60 @@
 
 ;; IMPL - API: VOLATILE DATA
 
-(defn object-type->history-id [object-type]
-  (get
-   {:float 0
-    :char  1
-    :log   2
-    :unint 3
-    :text  4}
-   object-type))
+(def history-object-type-map
+  {:float 0
+   :char  1
+   :log   2
+   :unint 3
+   :text  4})
 
-(defn eval-type->id [eval-type]
-  (get
-   {:and+or                0
-    :or                    2}
-   eval-type))
+(defn object-type->history-id [v]
+  (zabbix-get-in-map history-object-type-map v))
 
-(defn eval-operator->id [eval-operator]
-  (get
-   {:like                  0
-    :equal                 2}
-   eval-operator))
+(def eval-type-map
+  {:and+or 0
+   :or     2})
 
-(defn event-source-type->source-id [source-type]
-  (get
-   {:trigger                0
-    :discovery-rule         1
-    :agent-autoregistration 2
-    :internal               3}
-   source-type))
+(defn eval-type->id [v]
+  (zabbix-get-in-map eval-type-map v))
+
+(def eval-operator-map
+  {:like  0
+   :equal 2})
+
+(defn eval-operator->id [v]
+  (zabbix-get-in-map eval-operator-map v))
+
+(def event-source-type-map
+  {:trigger                0
+   :discovery-rule         1
+   :agent-autoregistration 2
+   :internal               3})
+
+(defn event-source-type->source-id [v]
+  (zabbix-get-in-map event-source-type-map v))
+
+(def event-object-type-map
+  {:trigger
+   {:trigger 0}
+
+   :discovery-rule
+   {:discovered-host 1
+    :discovered-service 2}
+
+   :agent-autoregistration
+   {:autoregistered-host 3}
+
+   :internal
+   {:trigger 0
+    :item 4
+    :lld-rule 5}})
 
 (defn event-object-type->object-id [source-type object-type]
-  (get-in
-   {:trigger
-    {:trigger 0}
-
-    :discovery-rule
-    {:discovered-host 1
-     :discovered-service 2}
-
-    :agent-autoregistration
-    {:autoregistered-host 3}
-
-    :internal
-    {:trigger 0
-     :item 4
-     :lld-rule 5}}
-   [source-type object-type]))
+  (let [source-id (event-source-type->source-id source-type)
+        source-type (get (map-invert event-source-type-map) source-id)
+        object-type-submap (get event-object-type-map source-type)]
+    (zabbix-get-in-map object-type-submap object-type)))
 
 
 
@@ -858,6 +867,19 @@
                                 :v v :coll coll})))
 
     :default (some #{v} coll)))
+
+(defn read-string-maybe [v]
+  (try
+    (edn/read-string v)
+    (catch Exception e)))
+
+(defn zabbix-get-in-map [map v]
+  (if (keyword? v)
+    (get map v)
+    ;; else: value passed directly
+    (let [v (read-string-maybe v)]
+      (when (member? v (vals map))
+        v))))
 
 
 
