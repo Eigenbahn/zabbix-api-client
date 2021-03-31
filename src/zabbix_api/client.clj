@@ -873,11 +873,16 @@
     (edn/read-string v)
     (catch Exception e)))
 
+(defn ensure-int [v]
+  (if (int? v)
+    v
+    (read-string-maybe v)))
+
 (defn zabbix-get-in-map [map v]
   (if (keyword? v)
     (get map v)
     ;; else: value passed directly
-    (let [v (read-string-maybe v)]
+    (let [v (ensure-int v)]
       (when (member? v (vals map))
         v))))
 
