@@ -872,7 +872,7 @@
     :default
     i))
 
-(defn- zabbix-timestamp->instant [ts-s & [ns-part]]
+(defn zabbix-timestamp->instant [ts-s & [ns-part]]
   (let [s-dur (t/new-duration (edn/read-string ts-s) :seconds)
         ns-part (or (edn/read-string ns-part) 0)
         ns-dur (t/new-duration ns-part :nanos)]
