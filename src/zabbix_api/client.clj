@@ -908,7 +908,7 @@
 (defn- clojurize-timed-collection-entry [entry]
   (let [ts-s (get entry "clock")
         ns-part (get entry "ns")
-        instant (zabbix-timestamp->instant ts-s)
+        instant (zabbix-timestamp->instant ts-s ns-part)
         entry (-> entry
                   (dissoc "clock")
                   (dissoc "ns"))]
